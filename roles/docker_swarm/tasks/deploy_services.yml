@@ -12,17 +12,17 @@
   command: >
     docker service create
     --name {{ item.name }}
-    --image {{ item.image }}
     --replicas {{ item.replicas | default(1) }}
-    --publish {{ item.publish | default('') }}
-    --network {{ item.network | default('') }}
-    --constraint {{ item.constraint | default('') }}
-    --label {{ item.label | default('') }}
-    --env {{ item.env | default('') }}
-    --mount {{ item.mount | default('') }}
+    {% if item.publish is defined and item.publish != '' %}--publish {{ item.publish }}{% endif %}
+    {% if item.network is defined and item.network != '' %}--network {{ item.network }}{% endif %}
+    {% if item.constraint is defined and item.constraint != '' %}--constraint {{ item.constraint }}{% endif %}
+    {% if item.label is defined and item.label != '' %}--label {{ item.label }}{% endif %}
+    {% if item.env is defined and item.env != '' %}--env {{ item.env }}{% endif %}
+    {% if item.mount is defined and item.mount != '' %}--mount {{ item.mount }}{% endif %}
     {{ item.extra_args | default('') }}
+    {{ item.image }}
   loop: "{{ swarm_services }}"
-  when: service_check.results[index].stdout == ""
+  when: service_check.results[ansible_loop.index0].stdout == ""
   loop_control:
     extended: yes
 
@@ -40,7 +40,7 @@
     {{ item.name }}
   loop: "{{ swarm_services }}"
   when: 
-    - service_check.results[index].stdout != ""
+    - service_check.results[ansible_loop.index0].stdout != ""
     - item.update | default(false) | bool
   loop_control:
     extended: yes
@@ -49,6 +49,6 @@
   debug:
     msg: "Deployed service: {{ item.name }} ({{ item.image }})"
   loop: "{{ swarm_services }}"
-  when: service_check.results[index].stdout == ""
+  when: service_check.results[ansible_loop.index0].stdout == ""
   loop_control:
     extended: yes

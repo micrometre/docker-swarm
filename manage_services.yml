@@ -1,0 +1,120 @@
+---
+- name: Manage Docker Swarm Services
+  hosts: docker_swarm1
+  become: true
+  vars:
+    swarm_node_role: "manager"
+    service_action: "{{ action | default('list') }}"
+    service_name: "{{ name | default('') }}"
+  tasks:
+    - name: Get services list
+      shell: docker service ls
+      register: services_list_output
+      
+    - name: Display services
+      debug:
+        msg: "{{ services_list_output.stdout }}"
+      when: service_action == "list"
+      
+    - name: Get service details
+      shell: docker service inspect {{ service_name }}
+      register: service_details
+      when: 
+        - service_action == "inspect"
+        - service_name != ""
+      failed_when: false
+      
+    - name: Check if service exists for inspection
+      fail:
+        msg: "Service '{{ service_name }}' not found. Available services: {{ services_list_output.stdout }}"
+      when: 
+        - service_action == "inspect"
+        - service_name != ""
+        - service_details.rc != 0
+        - services_list_output is defined
+      
+    - name: Display service details
+      debug:
+        msg: "{{ service_details.stdout | from_json }}"
+      when: 
+        - service_action == "inspect"
+        - service_name != ""
+      
+    - name: Scale service
+      shell: docker service scale {{ service_name }}={{ replicas | default(1) }}
+      register: scale_result
+      when: 
+        - service_action == "scale"
+        - service_name != ""
+        - replicas is defined
+      failed_when: false
+      
+    - name: Check if service exists for scaling
+      fail:
+        msg: "Service '{{ service_name }}' not found. Available services: {{ services_list_output.stdout }}"
+      when: 
+        - service_action == "scale"
+        - service_name != ""
+        - scale_result.rc != 0
+        - services_list_output is defined
+      
+    - name: Remove service
+      shell: docker service rm {{ service_name }}
+      register: remove_result
+      when: 
+        - service_action == "remove"
+        - service_name != ""
+      failed_when: false
+      
+    - name: Check if service exists for removal
+      fail:
+        msg: "Service '{{ service_name }}' not found. Available services: {{ services_list_output.stdout }}"
+      when: 
+        - service_action == "remove"
+        - service_name != ""
+        - remove_result.rc != 0
+        - services_list_output is defined
+      
+    - name: Update service
+      shell: docker service update {{ service_name }} --image {{ image | default('nginx:alpine') }}
+      register: update_result
+      when: 
+        - service_action == "update"
+        - service_name != ""
+        - image is defined
+      failed_when: false
+      
+    - name: Check if service exists for update
+      fail:
+        msg: "Service '{{ service_name }}' not found. Available services: {{ services_list_output.stdout }}"
+      when: 
+        - service_action == "update"
+        - service_name != ""
+        - update_result.rc != 0
+        - services_list_output is defined
+      
+    - name: Get service logs
+      shell: docker service logs {{ service_name }} --tail {{ tail | default(50) }}
+      register: service_logs
+      when: 
+        - service_action == "logs"
+        - service_name != ""
+      failed_when: false
+      
+    - name: Check if service exists for logs
+      fail:
+        msg: "Service '{{ service_name }}' not found. Available services: {{ services_list_output.stdout }}"
+      when: 
+        - service_action == "logs"
+        - service_name != ""
+        - service_logs.rc != 0
+        - services_list_output is defined
+      
+    - name: Display service logs
+      debug:
+        msg: "{{ service_logs.stdout }}"
+      when: 
+        - service_action == "logs"
+        - service_name != ""
+  tags:
+    - service_manage

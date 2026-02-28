@@ -2,7 +2,7 @@
 # Tasks to configure Swarm node
 
 - name: Get current node ID
-  shell: 'docker info --format "{{.Swarm.Node.ID}}"'
+  shell: docker info | grep 'Node ID:' | awk '{print $3}'
   register: current_node_id
   changed_when: false
 

@@ -51,6 +51,14 @@
   become: true
   vars:
     swarm_node_role: "{{ 'manager' if inventory_hostname == 'docker_swarm1' else 'worker' }}"
+    swarm_services:
+      - name: "nginx_test"
+        image: "nginx:alpine"
+        replicas: 2
+        publish: "8080:80"
+        network: "ingress"
+        env: "NGINX_HOST=docker_swarm1"
+        update: false
   tasks:
     - name: Get Swarm status
       include_role:

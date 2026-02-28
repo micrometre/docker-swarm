@@ -17,7 +17,7 @@
     {{ item.name }}
   loop: "{{ swarm_networks }}"
   when: 
-    - network_check.results[index].stdout == ""
+    - network_check.results[ansible_loop.index0].stdout == ""
     - item.subnet is defined
     - item.gateway is defined
   loop_control:
@@ -30,7 +30,7 @@
     {{ item.name }}
   loop: "{{ swarm_networks }}"
   when: 
-    - network_check.results[index].stdout == ""
+    - network_check.results[ansible_loop.index0].stdout == ""
     - item.subnet is not defined
   loop_control:
     extended: yes
@@ -39,6 +39,6 @@
   debug:
     msg: "Created network: {{ item.name }}"
   loop: "{{ swarm_networks }}"
-  when: network_check.results[index].stdout == ""
+  when: network_check.results[ansible_loop.index0].stdout == ""
   loop_control:
     extended: yes

@@ -29,7 +29,17 @@ help:
 	@echo "  swarm-status           - Show Swarm status and info"
 	@echo "  leave-swarm            - Leave Swarm cluster"
 	@echo "  deploy-services        - Deploy Swarm services"
+	@echo "  deploy-nginx           - Deploy test Nginx service"
+	@echo "  deploy-redis           - Deploy Redis services"
+	@echo "  deploy-stack           - Deploy full application stack"
 	@echo "  create-networks        - Create Swarm networks"
+	@echo ""
+	@echo "Service Management:"
+	@echo "  list-services          - List all Swarm services"
+	@echo "  inspect-service        - Inspect service details (NAME=service_name)"
+	@echo "  scale-service          - Scale service (NAME=service_name REPLICAS=n)"
+	@echo "  remove-service         - Remove service (NAME=service_name)"
+	@echo "  service-logs           - Show service logs (NAME=service_name)"
 	@echo ""
 	@echo "Inventory:"
 	@echo "  list-vms               - List all created VMs"
@@ -47,8 +57,11 @@ help:
 	@echo "  make init-swarm"
 	@echo "  make setup-swarm"
 	@echo "  make swarm-status"
+	@echo "  make deploy-nginx"
+	@echo "  make list-services"
+	@echo "  make scale-service NAME=nginx_test REPLICAS=3"
 
-.PHONY: help check-syntax create-vm create-multiple-vms create-docker-swarm custom_vm create-vm-force create-multiple-vms-force configure-vm configure-vm-specific ping-vms ping-vm list-vms show-inventory vm-status vm-cleanup vm-overview clean_full vars setup-vm-full
+.PHONY: help check-syntax create-vm create-multiple-vms create-docker-swarm custom_vm create-vm-force create-multiple-vms-force configure-vm configure-vm-specific ping-vms ping-vm list-vms show-inventory vm-status vm-cleanup vm-overview clean_full vars setup-vm-full init-swarm join-swarm setup-swarm swarm-status leave-swarm deploy-services deploy-nginx deploy-redis deploy-stack create-networks list-services inspect-service scale-service remove-service service-logs
 
 # Create single VM (legacy mode)
 create-vm:
@@ -91,6 +104,34 @@ leave-swarm:
 
 deploy-services:
 	ansible-playbook -i inventory/created_vms.yml setup_docker_swarm.yml --tags swarm_services
+
+# Deploy test Nginx service
+deploy-nginx:
+	ansible-playbook -i inventory/created_vms.yml deploy_nginx.yml
+
+# Deploy Redis services
+deploy-redis:
+	ansible-playbook -i inventory/created_vms.yml deploy_redis.yml
+
+# Deploy full application stack
+deploy-stack:
+	ansible-playbook -i inventory/created_vms.yml deploy_stack.yml
+
+# Service management
+list-services:
+	ansible-playbook -i inventory/created_vms.yml manage_services.yml -e "action=list"
+
+inspect-service:
+	ansible-playbook -i inventory/created_vms.yml manage_services.yml -e "action=inspect" -e "name=$(NAME)"
+
+scale-service:
+	ansible-playbook -i inventory/created_vms.yml manage_services.yml -e "action=scale" -e "name=$(NAME)" -e "replicas=$(REPLICAS)"
+
+remove-service:
+	ansible-playbook -i inventory/created_vms.yml manage_services.yml -e "action=remove" -e "name=$(NAME)"
+
+service-logs:
+	ansible-playbook -i inventory/created_vms.yml manage_services.yml -e "action=logs" -e "name=$(NAME)"
 
 create-networks:
 	ansible-playbook -i inventory/created_vms.yml setup_docker_swarm.yml --tags swarm_networks

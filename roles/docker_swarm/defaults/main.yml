@@ -10,7 +10,7 @@ swarm_default_addr_pool_subnet: "24"
 
 # Node configuration
 swarm_node_role: "worker"  # Can be "manager" or "worker"
-swarm_node_labels: []
+swarm_node_labels: {}
 swarm_node_availability: "active"  # Can be "active", "pause", "drain"
 
 # Manager configuration

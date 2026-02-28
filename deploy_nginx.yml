@@ -1,0 +1,24 @@
+---
+- name: Deploy Nginx Test Service
+  hosts: docker_swarm1
+  become: true
+  vars:
+    swarm_node_role: "manager"
+    swarm_networks:
+      - name: "web_network"
+        driver: "overlay"
+        subnet: "10.10.0.0/24"
+        gateway: "10.10.0.1"
+    swarm_services:
+      - name: "nginx_test"
+        image: "nginx:alpine"
+        replicas: 2
+        publish: "8080:80"
+        network: "web_network"
+        env: "NGINX_HOST=docker_swarm1"
+        update: false
+  roles:
+    - docker_swarm
+  tags:
+    - nginx_deploy
+    - swarm_services
