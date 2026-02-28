@@ -1,0 +1,40 @@
+---
+# Tasks to join existing Docker Swarm
+
+- name: Load Swarm tokens from file
+  include_vars:
+    file: /tmp/swarm_tokens.yml
+  when: swarm_worker_token == ""
+
+- name: Determine which token to use
+  set_fact:
+    join_token: "{{ swarm_manager_token if swarm_node_role == 'manager' else swarm_worker_token }}"
+
+- name: Join Docker Swarm
+  shell: >
+    docker swarm join
+    --token {{ join_token }}
+    {{ swarm_advertise_addr }}:2377
+  register: swarm_join_result
+  when: 
+    - swarm_status.stdout == "inactive"
+    - join_token != ""
+  ignore_errors: true
+
+- name: Wait for node to be ready
+  pause:
+    seconds: 5
+  when: swarm_join_result is succeeded
+
+- name: Verify node joined Swarm
+  shell: "docker info | grep 'Swarm: ' | awk '{print $2}'"
+  register: verify_swarm_status
+  changed_when: false
+  retries: 3
+  delay: 2
+  until: verify_swarm_status.stdout == "active"
+
+- name: Display join success
+  debug:
+    msg: "Successfully joined Docker Swarm as {{ swarm_node_role }}"
+  when: verify_swarm_status.stdout == "active"

@@ -1,0 +1,26 @@
+---
+# Tasks to configure Swarm node
+
+- name: Get current node ID
+  shell: 'docker info --format "{{.Swarm.Node.ID}}"'
+  register: current_node_id
+  changed_when: false
+
+- name: Update node availability
+  command: docker node update --availability {{ swarm_node_availability }} {{ current_node_id.stdout }}
+  when: swarm_node_availability != "active"
+
+- name: Add node labels
+  command: docker node update --label-add {{ item.key }}={{ item.value }} {{ current_node_id.stdout }}
+  loop: "{{ swarm_node_labels | dict2items }}"
+  when: swarm_node_labels | length > 0
+  loop_control:
+    label: "{{ item.key }}={{ item.value }}"
+
+- name: Display node configuration
+  debug:
+    msg: |
+      Node {{ current_node_id.stdout }} configured:
+      - Role: {{ swarm_node_role }}
+      - Availability: {{ swarm_node_availability }}
+      - Labels: {{ swarm_node_labels | default([]) }}

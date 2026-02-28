@@ -1,0 +1,4 @@
+# dependencies
+ansible>=2.9
+ansible-lint
+yamllint

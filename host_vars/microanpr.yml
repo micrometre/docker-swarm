@@ -1,0 +1,4 @@
+---
+ansible_user: "ubuntu" 
+gather_facts: yes
+ansible_host: microanpr

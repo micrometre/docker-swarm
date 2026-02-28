@@ -1,0 +1,22 @@
+---
+- name: Configure VMs for Docker Swarm
+  hosts:  all
+  become: true
+  gather_facts: true
+  
+  roles:
+    - common
+    - users
+    - docker
+  post_tasks:
+    - name: Display configuration status
+      debug:
+        msg: |
+          ========================================
+          VM Configuration Complete!
+          ========================================
+          Hostname: {{ ansible_facts.hostname }}
+          IP Address: {{ ansible_host }}
+          OS: {{ ansible_facts.distribution }} {{ ansible_facts.distribution_version }}
+          Python: {{ ansible_facts.python_version }}
+          ========================================

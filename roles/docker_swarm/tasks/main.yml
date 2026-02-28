@@ -1,0 +1,58 @@
+---
+# Main tasks for Docker Swarm role
+
+- name: Check if Docker is installed
+  command: docker --version
+  register: docker_check
+  failed_when: false
+  changed_when: false
+
+- name: Fail if Docker is not installed
+  fail:
+    msg: "Docker is not installed. Please install Docker first."
+  when: docker_check.rc != 0
+
+- name: Check if Swarm is already initialized
+  shell: "docker info | grep 'Swarm: ' | awk '{print $2}'"
+  register: swarm_status
+  failed_when: false
+  changed_when: false
+
+- name: Initialize Docker Swarm (first manager)
+  include_tasks: init_swarm.yml
+  when: 
+    - swarm_node_role == "manager"
+    - swarm_status.stdout == "inactive"
+
+- name: Join existing Swarm (additional managers)
+  include_tasks: join_swarm.yml
+  when: 
+    - swarm_node_role == "manager"
+    - swarm_status.stdout == "inactive"
+    - swarm_manager_token != ""
+
+- name: Join existing Swarm (workers)
+  include_tasks: join_swarm.yml
+  when: 
+    - swarm_node_role == "worker"
+    - swarm_status.stdout == "inactive"
+
+- name: Configure Swarm node
+  include_tasks: configure_node.yml
+  when: swarm_status.stdout != "inactive"
+
+- name: Create Swarm networks
+  include_tasks: create_networks.yml
+  when: 
+    - swarm_node_role == "manager"
+    - swarm_status.stdout != "inactive"
+
+- name: Deploy Swarm services
+  include_tasks: deploy_services.yml
+  when: 
+    - swarm_node_role == "manager"
+    - swarm_status.stdout != "inactive"
+    - swarm_services | length > 0
+
+- name: Display Swarm status
+  include_tasks: status.yml

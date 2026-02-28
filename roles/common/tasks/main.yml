@@ -1,0 +1,23 @@
+---
+# tasks file for common
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Upgrade all packages
+  apt:
+    upgrade: dist
+    autoremove: yes
+    autoclean: yes
+
+- name: Install system packages
+  apt:
+    name: "{{ sys_packages }}"
+    state: present
+    update_cache: yes
+
+- name: Install Python 3 packages
+  apt:
+    name: "{{ python3_packages }}"
+    state: present

@@ -1,0 +1,26 @@
+---
+# Tasks to leave Docker Swarm
+
+- name: Check if Swarm is active
+  shell: 'docker info --format "{{.Swarm.LocalNodeState}}"'
+  register: swarm_status
+  changed_when: false
+
+- name: Leave Docker Swarm (worker)
+  command: docker swarm leave
+  register: leave_result
+  when: 
+    - swarm_status.stdout == "active"
+    - swarm_node_role == "worker"
+
+- name: Leave Docker Swarm (manager)
+  command: docker swarm leave --force
+  register: leave_result
+  when: 
+    - swarm_status.stdout == "active"
+    - swarm_node_role == "manager"
+
+- name: Display leave result
+  debug:
+    msg: "Successfully left Docker Swarm"
+  when: leave_result is succeeded

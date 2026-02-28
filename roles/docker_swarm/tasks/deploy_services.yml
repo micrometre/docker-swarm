@@ -1,0 +1,54 @@
+---
+# Tasks to deploy Docker Swarm services
+
+- name: Check if service exists
+  command: docker service ls --filter name={{ item.name }} -q
+  register: service_check
+  loop: "{{ swarm_services }}"
+  changed_when: false
+  failed_when: false
+
+- name: Create or update services
+  command: >
+    docker service create
+    --name {{ item.name }}
+    --image {{ item.image }}
+    --replicas {{ item.replicas | default(1) }}
+    --publish {{ item.publish | default('') }}
+    --network {{ item.network | default('') }}
+    --constraint {{ item.constraint | default('') }}
+    --label {{ item.label | default('') }}
+    --env {{ item.env | default('') }}
+    --mount {{ item.mount | default('') }}
+    {{ item.extra_args | default('') }}
+  loop: "{{ swarm_services }}"
+  when: service_check.results[index].stdout == ""
+  loop_control:
+    extended: yes
+
+- name: Update existing services
+  command: >
+    docker service update
+    --image {{ item.image }}
+    --replicas {{ item.replicas | default(1) }}
+    --publish-add {{ item.publish | default('') }}
+    --constraint-add {{ item.constraint | default('') }}
+    --label-add {{ item.label | default('') }}
+    --env-add {{ item.env | default('') }}
+    --mount-add {{ item.mount | default('') }}
+    {{ item.extra_args | default('') }}
+    {{ item.name }}
+  loop: "{{ swarm_services }}"
+  when: 
+    - service_check.results[index].stdout != ""
+    - item.update | default(false) | bool
+  loop_control:
+    extended: yes
+
+- name: Display deployed services
+  debug:
+    msg: "Deployed service: {{ item.name }} ({{ item.image }})"
+  loop: "{{ swarm_services }}"
+  when: service_check.results[index].stdout == ""
+  loop_control:
+    extended: yes

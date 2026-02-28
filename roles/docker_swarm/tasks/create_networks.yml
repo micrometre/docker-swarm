@@ -1,0 +1,44 @@
+---
+# Tasks to create Docker Swarm networks
+
+- name: Check if network already exists
+  command: docker network ls --filter name={{ item.name }} -q
+  register: network_check
+  loop: "{{ swarm_networks }}"
+  changed_when: false
+  failed_when: false
+
+- name: Create overlay networks
+  command: >
+    docker network create
+    --driver {{ item.driver | default('overlay') }}
+    --subnet {{ item.subnet }}
+    --gateway {{ item.gateway }}
+    {{ item.name }}
+  loop: "{{ swarm_networks }}"
+  when: 
+    - network_check.results[index].stdout == ""
+    - item.subnet is defined
+    - item.gateway is defined
+  loop_control:
+    extended: yes
+
+- name: Create overlay networks (without subnet/gateway)
+  command: >
+    docker network create
+    --driver {{ item.driver | default('overlay') }}
+    {{ item.name }}
+  loop: "{{ swarm_networks }}"
+  when: 
+    - network_check.results[index].stdout == ""
+    - item.subnet is not defined
+  loop_control:
+    extended: yes
+
+- name: Display created networks
+  debug:
+    msg: "Created network: {{ item.name }}"
+  loop: "{{ swarm_networks }}"
+  when: network_check.results[index].stdout == ""
+  loop_control:
+    extended: yes

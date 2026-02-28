@@ -1,0 +1,6 @@
+---
+create_users:
+    - ubuntu
+    
+copy_local_key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+

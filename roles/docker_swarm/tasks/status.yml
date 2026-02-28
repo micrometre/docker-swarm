@@ -1,0 +1,74 @@
+---
+# Tasks to display Docker Swarm status
+
+- name: Get Swarm status
+  shell: "docker info | grep 'Swarm: ' | awk '{print $2}'"
+  register: current_swarm_status
+  changed_when: false
+
+- name: Get node information
+  shell: "docker info | grep 'Node ID:' | awk '{print $3}'"
+  register: swarm_info
+  changed_when: false
+  when: current_swarm_status.stdout != "inactive"
+
+- name: Display Swarm overview
+  debug:
+    msg: |
+      Docker Swarm Status: {{ current_swarm_status.stdout }}
+      
+      {% if current_swarm_status.stdout != "inactive" %}
+      Node ID: {{ swarm_info.stdout }}
+      {% endif %}
+  when: swarm_info.stdout is defined
+
+- name: List all nodes in Swarm
+  shell: docker node ls
+  register: swarm_nodes
+  changed_when: false
+  when: 
+    - current_swarm_status.stdout != "inactive"
+    - swarm_node_role == "manager"
+
+- name: Display Swarm nodes
+  debug:
+    msg: |
+      Swarm Nodes:
+      {{ swarm_nodes.stdout }}
+  when: 
+    - current_swarm_status.stdout != "inactive"
+    - swarm_node_role == "manager"
+
+- name: List all services in Swarm
+  shell: docker service ls
+  register: swarm_services
+  changed_when: false
+  when: 
+    - current_swarm_status.stdout != "inactive"
+    - swarm_node_role == "manager"
+
+- name: Display Swarm services
+  debug:
+    msg: |
+      Swarm Services:
+      {{ swarm_services.stdout }}
+  when: 
+    - current_swarm_status.stdout != "inactive"
+    - swarm_node_role == "manager"
+
+- name: List all networks in Swarm
+  shell: docker network ls --filter driver=overlay
+  register: swarm_networks
+  changed_when: false
+  when: 
+    - current_swarm_status.stdout != "inactive"
+    - swarm_node_role == "manager"
+
+- name: Display Swarm networks
+  debug:
+    msg: |
+      Swarm Networks:
+      {{ swarm_networks.stdout }}
+  when: 
+    - current_swarm_status.stdout != "inactive"
+    - swarm_node_role == "manager"
