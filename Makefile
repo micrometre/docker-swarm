@@ -43,8 +43,16 @@ help:
 	@echo "  service-logs           - Show service logs (NAME=service_name)"
 	@echo ""
 	@echo "Inventory:"
-	@echo "  list-vms               - List all created VMs"
-	@echo "  show-inventory         - Show detailed inventory"
+	@echo "  list-vms              - List all created VMs"
+	@echo "  show-inventory        - Show VM inventory details"
+	@echo "  power-on-vms          - Power on all VMs"
+	@echo "  power-on-vm           - Power on specific VM (VM=vm_name)"
+	@echo "  shutdown-vms          - Gracefully shutdown all VMs"
+	@echo "  shutdown-vm           - Gracefully shutdown specific VM (VM=vm_name)"
+	@echo "  restart-vms           - Restart all VMs"
+	@echo "  restart-vm            - Restart specific VM (VM=vm_name)"
+	@echo "  force-shutdown-vms    - Force shutdown all VMs"
+	@echo "  force-shutdown-vm     - Force shutdown specific VM (VM=vm_name)"
 	@echo ""
 	@echo "Utilities:"
 	@echo "  check-syntax           - Validate playbook syntax"
@@ -62,8 +70,11 @@ help:
 	@echo "  make list-services"
 	@echo "  make scale-service NAME=nginx_test REPLICAS=3"
 	@echo "  make deploy-repo REPO=https://github.com/user/repo.git"
+	@echo "  make power-on-vm VM=docker_swarm1"
+	@echo "  make shutdown-vms"
+	@echo "  make restart-vm VM=docker_swarm2"
 
-.PHONY: help check-syntax create-vm create-multiple-vms create-docker-swarm custom_vm create-vm-force create-multiple-vms-force configure-vm configure-vm-specific ping-vms ping-vm list-vms show-inventory vm-status vm-cleanup vm-overview clean_full vars setup-vm-full init-swarm join-swarm setup-swarm swarm-status leave-swarm deploy-services deploy-nginx deploy-redis deploy-stack deploy-repo create-networks list-services inspect-service scale-service remove-service service-logs
+.PHONY: help check-syntax create-vm create-multiple-vms create-docker-swarm custom_vm create-vm-force create-multiple-vms-force configure-vm configure-vm-specific ping-vms ping-vm list-vms show-inventory vm-status vm-cleanup vm-overview clean_full vars setup-vm-full init-swarm join-swarm setup-swarm swarm-status leave-swarm deploy-services deploy-nginx deploy-redis deploy-stack deploy-repo create-networks list-services inspect-service scale-service remove-service service-logs power-on-vms power-on-vm shutdown-vms shutdown-vm restart-vms restart-vm force-shutdown-vms force-shutdown-vm
 
 # Create single VM (legacy mode)
 create-vm:
@@ -164,6 +175,95 @@ list-vms:
 		ansible-inventory -i inventory/created_vms.yml --list | grep -A 10 '"created_vms"' | grep -E '"docker_[a-zA-Z0-9_-]+"' | sed 's/^[[:space:]]*"//;s/".*//'; \
 	else \
 		echo "No created VMs inventory file found."; \
+	fi
+
+# Power management commands
+power-on-vms:
+	@if [ -f "inventory/created_vms.yml" ]; then \
+		echo "Powering on all VMs..."; \
+		for vm in $$(ansible-inventory -i inventory/created_vms.yml --list | grep -A 10 '"created_vms"' | grep -E '"docker_[a-zA-Z0-9_-]+"' | sed 's/^[[:space:]]*"//;s/".*//'); do \
+			echo "Powering on $$vm..."; \
+			virsh start $$vm 2>/dev/null || echo "VM $$vm is already running or start failed"; \
+		done; \
+	else \
+		echo "No created VMs inventory file found."; \
+	fi
+
+power-on-vm:
+	@if [ -z "$(VM)" ]; then \
+		echo "Usage: make power-on-vm VM=<vm_name>"; \
+		echo "Example: make power-on-vm VM=docker_swarm1"; \
+	else \
+		echo "Powering on VM $(VM)..."; \
+		virsh start $(VM) || echo "VM $(VM) is already running or start failed"; \
+	fi
+
+shutdown-vms:
+	@if [ -f "inventory/created_vms.yml" ]; then \
+		echo "Shutting down all VMs..."; \
+		for vm in $$(ansible-inventory -i inventory/created_vms.yml --list | grep -A 10 '"created_vms"' | grep -E '"docker_[a-zA-Z0-9_-]+"' | sed 's/^[[:space:]]*"//;s/".*//'); do \
+			echo "Shutting down $$vm..."; \
+			virsh shutdown $$vm 2>/dev/null || echo "VM $$vm is already stopped or shutdown failed"; \
+		done; \
+	else \
+		echo "No created VMs inventory file found."; \
+	fi
+
+shutdown-vm:
+	@if [ -z "$(VM)" ]; then \
+		echo "Usage: make shutdown-vm VM=<vm_name>"; \
+		echo "Example: make shutdown-vm VM=docker_swarm1"; \
+	else \
+		echo "Shutting down VM $(VM)..."; \
+		virsh shutdown $(VM) || echo "VM $(VM) is already stopped or shutdown failed"; \
+	fi
+
+restart-vms:
+	@if [ -f "inventory/created_vms.yml" ]; then \
+		echo "Restarting all VMs..."; \
+		for vm in $$(ansible-inventory -i inventory/created_vms.yml --list | grep -A 10 '"created_vms"' | grep -E '"docker_[a-zA-Z0-9_-]+"' | sed 's/^[[:space:]]*"//;s/".*//'); do \
+			echo "Restarting $$vm..."; \
+			virsh reboot $$vm 2>/dev/null || echo "VM $$vm reboot failed, trying shutdown+start..."; \
+			sleep 3; \
+			virsh shutdown $$vm 2>/dev/null; \
+			sleep 5; \
+			virsh start $$vm 2>/dev/null || echo "VM $$vm restart failed"; \
+		done; \
+	else \
+		echo "No created VMs inventory file found."; \
+	fi
+
+restart-vm:
+	@if [ -z "$(VM)" ]; then \
+		echo "Usage: make restart-vm VM=<vm_name>"; \
+		echo "Example: make restart-vm VM=docker_swarm1"; \
+	else \
+		echo "Restarting VM $(VM)..."; \
+		virsh reboot $(VM) 2>/dev/null || echo "VM $(VM) reboot failed, trying shutdown+start..."; \
+		sleep 3; \
+		virsh shutdown $(VM) 2>/dev/null; \
+		sleep 5; \
+		virsh start $(VM) 2>/dev/null || echo "VM $(VM) restart failed"; \
+	fi
+
+force-shutdown-vms:
+	@if [ -f "inventory/created_vms.yml" ]; then \
+		echo "Force shutting down all VMs..."; \
+		for vm in $$(ansible-inventory -i inventory/created_vms.yml --list | grep -A 10 '"created_vms"' | grep -E '"docker_[a-zA-Z0-9_-]+"' | sed 's/^[[:space:]]*"//;s/".*//'); do \
+			echo "Force shutting down $$vm..."; \
+			virsh destroy $$vm 2>/dev/null || echo "VM $$vm is already stopped or destroy failed"; \
+		done; \
+	else \
+		echo "No created VMs inventory file found."; \
+	fi
+
+force-shutdown-vm:
+	@if [ -z "$(VM)" ]; then \
+		echo "Usage: make force-shutdown-vm VM=<vm_name>"; \
+		echo "Example: make force-shutdown-vm VM=docker_swarm1"; \
+	else \
+		echo "Force shutting down VM $(VM)..."; \
+		virsh destroy $(VM) || echo "VM $(VM) is already stopped or destroy failed"; \
 	fi
 
 # Show VM inventory details
