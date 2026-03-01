@@ -34,7 +34,7 @@
         env: "APACHE_SERVER_NAME=docker_swarm1"
         update: false
   roles:
-    - docker_swarm
+    - ../../roles/docker_swarm
   tags:
     - stack_deploy
     - swarm_services

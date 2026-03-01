@@ -23,7 +23,7 @@
         env: "REDIS_REPLICATION_MODE=slave REDIS_MASTER_HOST=redis_master"
         update: false
   roles:
-    - docker_swarm
+    - ../../roles/docker_swarm
   tags:
     - redis_deploy
     - swarm_services

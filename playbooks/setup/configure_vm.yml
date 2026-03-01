@@ -1,15 +1,14 @@
 ---
-- name: Configure VMs for Docker Swarm
-  hosts:  all
+- name: Configure Created VMs
+  hosts: created_vms
   become: true
-  gather_facts: true
-  
+  vars:
+    # Add any configuration variables here
   roles:
-    - common
-    - users
-    - docker
-  post_tasks:
-    - name: Display configuration status
+    - ../../roles/common
+    - ../../roles/docker
+  tasks:
+    - name: Display VM configuration status
       debug:
         msg: |
           ========================================

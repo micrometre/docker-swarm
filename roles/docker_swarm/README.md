@@ -20,6 +20,18 @@ make join-swarm    # Join docker_swarm2 as worker
 make swarm-status  # Verify cluster status
 ```
 
+```bash
+# Deploy services
+make deploy-repo REPO=https://github.com/docker/example-voting-app.git
+make deploy-repo REPO=file:///path/to/local/stack STACK=dev-app
+make deploy-repo \
+  REPO=https://github.com/company/prod-app.git \
+  STACK=production \
+  BRANCH=main \
+  CLEANUP=true
+```
+
+
 ## Current VM Configuration
 
 This role is configured to work with the following VM setup:

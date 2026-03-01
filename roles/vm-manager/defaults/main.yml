@@ -6,16 +6,16 @@ vms:
   docker_swarm_vm1:
     vm_name: docker_swarm1
     vm_hostname: docker_swarm1
-    vm_ram: 2048
-    vm_vcpus: 1
-    vm_disk_size: 10G
+    vm_ram: 8048
+    vm_vcpus: 2
+    vm_disk_size: 20G
     vm_static_ip: "192.168.122.101"
   docker_swarm_vm2:
     vm_name: docker_swarm2
     vm_hostname: docker_swarm2
-    vm_ram: 2048
-    vm_vcpus: 1
-    vm_disk_size: 10G
+    vm_ram: 8048
+    vm_vcpus: 2
+    vm_disk_size: 20G
     vm_static_ip: "192.168.122.102"
 
 # Legacy single VM support (for backward compatibility)

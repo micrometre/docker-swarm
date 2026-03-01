@@ -29,7 +29,7 @@
         network: "db_network"
         update: false
   roles:
-    - docker_swarm
+    - ../../roles/docker_swarm
   tags:
     - swarm_manager
     - swarm_init
@@ -41,7 +41,7 @@
     swarm_node_role: "worker"
     swarm_advertise_addr: "192.168.122.101"
   roles:
-    - docker_swarm
+    - ../../roles/docker_swarm
   tags:
     - swarm_worker
     - swarm_join
@@ -62,7 +62,7 @@
   tasks:
     - name: Get Swarm status
       include_role:
-        name: docker_swarm
+        name: ../../roles/docker_swarm
         tasks_from: status.yml
   tags:
     - swarm_status

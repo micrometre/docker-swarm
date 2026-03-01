@@ -1,5 +1,5 @@
 # Individual inventory for VM: docker_swarm1
-# Created: 2026-02-28T22:03:16Z
+# Created: 2026-02-28T23:29:47Z
 all:
   children:
     created_vms:
@@ -9,9 +9,9 @@ all:
           ansible_user: ubuntu
           ansible_ssh_private_key_file: "~/.ssh/id_rsa"
           ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
-          vm_created: "2026-02-28T22:03:16Z"
-          vm_ram: 2048
-          vm_vcpus: 1
-          vm_disk_size: "10G"
+          vm_created: "2026-02-28T23:29:47Z"
+          vm_ram: 8048
+          vm_vcpus: 2
+          vm_disk_size: "20G"
           vm_os_variant: "ubuntu20.04"
           description: "VM created via ANPR service integration"

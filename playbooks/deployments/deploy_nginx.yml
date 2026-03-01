@@ -18,7 +18,7 @@
         env: "NGINX_HOST=docker_swarm1"
         update: false
   roles:
-    - docker_swarm
+    - ../../roles/docker_swarm
   tags:
     - nginx_deploy
     - swarm_services
