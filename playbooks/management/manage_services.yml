@@ -6,6 +6,7 @@
     swarm_node_role: "manager"
     service_action: "{{ action | default('list') }}"
     service_name: "{{ name | default('') }}"
+    stack_name: "{{ stack | default('') }}"
   tasks:
     - name: Get services list
       shell: docker service ls
@@ -74,6 +75,112 @@
         - service_name != ""
         - remove_result.rc != 0
         - services_list_output is defined
+      
+    - name: Remove all services
+      shell: |
+        for service in $(docker service ls -q); do
+          echo "Removing service: $(docker service inspect $service --format '{{.Spec.Name}}')"
+          docker service rm $service
+        done
+      register: remove_all_result
+      when: service_action == "remove_all"
+      failed_when: false
+      
+    - name: Display all services removal result
+      debug:
+        msg: "{{ remove_all_result.stdout }}"
+      when: service_action == "remove_all"
+      
+    - name: Remove specific stack
+      shell: docker stack rm {{ stack_name }}
+      register: remove_stack_result
+      when: 
+        - service_action == "remove_stack"
+        - stack_name != ""
+      failed_when: false
+      
+    - name: Check if stack exists for removal
+      fail:
+        msg: "Stack '{{ stack_name }}' not found or removal failed. Available stacks can be listed with 'docker stack ls'"
+      when: 
+        - service_action == "remove_stack"
+        - stack_name != ""
+        - remove_stack_result.rc != 0
+      
+    - name: Display stack removal result
+      debug:
+        msg: "Stack '{{ stack_name }}' removal: {{ 'SUCCESS' if remove_stack_result.rc == 0 else 'FAILED' }}"
+      when: 
+        - service_action == "remove_stack"
+        - stack_name != ""
+      
+    - name: Clean up Docker resources
+      shell: |
+        echo "Cleaning up unused Docker resources..."
+        
+        # Remove stopped containers
+        echo "Removing stopped containers..."
+        docker container prune -f
+        
+        # Remove unused images
+        echo "Removing unused images..."
+        docker image prune -f
+        
+        # Remove unused networks
+        echo "Removing unused networks..."
+        docker network prune -f
+        
+        # Remove unused volumes (with confirmation)
+        echo "Removing unused volumes..."
+        docker volume prune -f
+        
+        # Clean up build cache
+        echo "Cleaning up build cache..."
+        docker builder prune -f
+        
+        echo "Docker cleanup completed!"
+      register: cleanup_result
+      when: service_action == "cleanup_docker"
+      
+    - name: Display Docker cleanup result
+      debug:
+        msg: "{{ cleanup_result.stdout }}"
+      when: service_action == "cleanup_docker"
+      
+    - name: Remove deployment directories
+      shell: |
+        echo "Cleaning up deployment directories..."
+        
+        # Remove FastAPI deployment directories
+        if [ -d "/home/ubuntu/repos/fastapi-anpr" ]; then
+          echo "Removing FastAPI ANPR directory..."
+          rm -rf /home/ubuntu/repos/fastapi-anpr
+        fi
+        
+        if [ -d "/home/ubuntu/repos/fastapi-app" ]; then
+          echo "Removing FastAPI app directory..."
+          rm -rf /home/ubuntu/repos/fastapi-app
+        fi
+        
+        # Remove other common deployment directories
+        if [ -d "/tmp/voting-app" ]; then
+          echo "Removing voting-app deployment directory..."
+          rm -rf /tmp/voting-app
+        fi
+        
+        if [ -d "/tmp/sample-app" ]; then
+          echo "Removing sample-app deployment directory..."
+          rm -rf /tmp/sample-app
+        fi
+        
+        echo "Deployment directories cleanup completed!"
+      register: cleanup_deployments_result
+      when: service_action == "cleanup_deployments"
+      
+    - name: Display deployment directories cleanup result
+      debug:
+        msg: "{{ cleanup_deployments_result.stdout }}"
+      when: service_action == "cleanup_deployments"
       
     - name: Update service
       shell: docker service update {{ service_name }} --image {{ image | default('nginx:alpine') }}

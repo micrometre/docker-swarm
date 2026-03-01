@@ -1,0 +1,233 @@
+---
+- name: Deploy FastAPI ANPR Application
+  hosts: created_vms
+  gather_facts: true
+  become: true
+  
+  vars:
+    app_dir: /home/ubuntu/repos/fastapi-anpr
+    fastapi_dir: /home/ubuntu/repos/fastapi-app
+    github_user: micrometre
+    docker_compose_version: "2.24.0"
+    fastapi_repo_url: "git@github.com:{{ github_user }}/fastapi-private-repo.git"
+    fastapi_repo_branch: "main"
+    docker_image_name: "fastapi-app"
+    docker_image_tag: "latest"
+    app_port: 8000
+    exposed_port: 8000
+  
+  tasks:
+
+    - name: Clean up existing directories if they exist
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ app_dir }}"
+        - "{{ fastapi_dir }}"
+
+    - name: Create required directories
+      file:
+        path: "/home/ubuntu/{{ item }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+      become_user: "{{ ansible_user }}"
+      loop:
+        - repos
+
+    - name: Accept GitHub host key
+      shell: ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+      become_user: "{{ ansible_user }}"
+      
+    - name: Clone ANPR application repository
+      git:
+        repo: "git@github.com:{{github_user}}/fastapi-anpr.git"
+        dest: "{{ app_dir }}"
+        version: azure
+        accept_hostkey: yes
+      become_user: "{{ ansible_user }}"
+
+    - name: Clone private FastAPI repository
+      git:
+        repo: "{{ fastapi_repo_url }}"
+        dest: "{{ fastapi_dir }}"
+        version: "{{ fastapi_repo_branch }}"
+        accept_hostkey: yes
+      become_user: "{{ ansible_user }}"
+      register: fastapi_clone
+
+    - name: Check if FastAPI repository was cloned successfully
+      debug:
+        msg: "FastAPI repository cloned to {{ fastapi_dir }}"
+      when: fastapi_clone.changed
+
+    - name: Check FastAPI repository contents
+      shell: ls -la {{ fastapi_dir }}
+      register: fastapi_contents
+      when: fastapi_clone.changed
+
+    - name: Display FastAPI repository contents
+      debug:
+        msg: "{{ fastapi_contents.stdout_lines }}"
+      when: fastapi_clone.changed
+
+    - name: Create Dockerfile for FastAPI application
+      copy:
+        dest: "{{ fastapi_dir }}/Dockerfile"
+        content: |
+          FROM python:3.11-slim
+          
+          WORKDIR /app
+          
+          # Install system dependencies
+          RUN apt-get update && apt-get install -y \
+              gcc \
+              && rm -rf /var/lib/apt/lists/*
+          
+          # Copy requirements and install Python dependencies
+          COPY requirements.txt .
+          RUN pip install --no-cache-dir -r requirements.txt
+          
+          # Copy application code
+          COPY . .
+          
+          # Expose port
+          EXPOSE {{ app_port }}
+          
+          # Run the application
+          CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "{{ app_port }}"]
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0644'
+      become_user: "{{ ansible_user }}"
+      when: fastapi_clone.changed
+
+    - name: Create requirements.txt if not exists
+      copy:
+        dest: "{{ fastapi_dir }}/requirements.txt"
+        content: |
+          fastapi==0.104.1
+          uvicorn[standard]==0.24.0
+          pydantic==2.5.0
+          python-multipart==0.0.6
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0644'
+      become_user: "{{ ansible_user }}"
+      when: fastapi_clone.changed
+
+    - name: Create docker-compose.yml for FastAPI
+      copy:
+        dest: "{{ fastapi_dir }}/docker-compose.yml"
+        content: |
+          version: '3.8'
+          
+          services:
+            fastapi-app:
+              build: .
+              ports:
+                - "{{ exposed_port }}:{{ app_port }}"
+              environment:
+                - ENVIRONMENT=production
+                - DEBUG=false
+              restart: unless-stopped
+              container_name: fastapi-app
+              networks:
+                - fastapi-network
+          
+          networks:
+            fastapi-network:
+              driver: bridge
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0644'
+      become_user: "{{ ansible_user }}"
+      when: fastapi_clone.changed
+
+    - name: Build and run FastAPI Docker container
+      shell: |
+        cd {{ fastapi_dir }}
+        docker-compose down
+        docker-compose build
+        docker-compose up -d
+      become_user: "{{ ansible_user }}"
+      when: fastapi_clone.changed
+      register: fastapi_deploy
+
+    - name: Wait for FastAPI application to start
+      pause:
+        seconds: 10
+      when: fastapi_clone.changed
+
+    - name: Check FastAPI container status
+      shell: |
+        cd {{ fastapi_dir }}
+        docker-compose ps
+      become_user: "{{ ansible_user }}"
+      register: fastapi_status
+      when: fastapi_clone.changed
+
+    - name: Display FastAPI container status
+      debug:
+        msg: "{{ fastapi_status.stdout_lines }}"
+      when: fastapi_clone.changed
+
+    - name: Test FastAPI application health
+      uri:
+        url: "http://localhost:{{ exposed_port }}/health"
+        method: GET
+        timeout: 30
+      register: fastapi_health
+      when: fastapi_clone.changed
+      ignore_errors: yes
+
+    - name: Display FastAPI health check result
+      debug:
+        msg: |
+          FastAPI Health Check:
+          Status: {{ 'UP' if fastapi_health.status == 200 else 'DOWN' }}
+          Response: {{ fastapi_health.status | default('No response') }}
+      when: fastapi_clone.changed
+
+    - name: Get FastAPI application logs
+      shell: |
+        cd {{ fastapi_dir }}
+        docker-compose logs fastapi-app --tail=20
+      become_user: "{{ ansible_user }}"
+      register: fastapi_logs
+      when: fastapi_clone.changed
+
+    - name: Display FastAPI application logs
+      debug:
+        msg: |
+          FastAPI Application Logs:
+          {{ fastapi_logs.stdout }}
+      when: fastapi_clone.changed
+
+    - name: Display deployment summary
+      debug:
+        msg: |
+          ========================================
+          FastAPI Applications Deployed Successfully!
+          ========================================
+          
+          ANPR Application:
+          - Directory: {{ app_dir }}
+          - Repository: git@github.com:{{github_user}}/fastapi-anpr.git
+          - Branch: azure
+          
+          FastAPI Private Application:
+          - Directory: {{ fastapi_dir }}
+          - Repository: {{ fastapi_repo_url }}
+          - Branch: {{ fastapi_repo_branch }}
+          - Port: {{ exposed_port }}
+          - Health: {{ 'UP' if fastapi_health.status == 200 else 'DOWN' }}
+          
+          Access URLs:
+          - FastAPI App: http://{{ ansible_host }}:{{ exposed_port }}
+          - FastAPI Docs: http://{{ ansible_host }}:{{ exposed_port }}/docs
+          - FastAPI Health: http://{{ ansible_host }}:{{ exposed_port }}/health
+          
+          ========================================

@@ -1,0 +1,147 @@
+---
+- name: Deploy FastAPI ANPR Application
+  hosts: created_vms
+  gather_facts: true
+  become: true
+  
+  vars:
+    app_dir: /home/ubuntu/repos/fastapi-anpr
+    fastapi_dir: /home/ubuntu/repos/fastapi-app
+    github_user: micrometre
+    docker_compose_version: "2.24.0"
+    fastapi_repo_url: "git@github.com:{{ github_user }}/fastapi-private-repo.git"
+    fastapi_repo_branch: "master"
+    docker_image_name: "fastapi-app"
+    docker_image_tag: "latest"
+    app_port: 8000
+    exposed_port: 8000
+  
+  tasks:
+
+    - name: Clean up existing directories if they exist
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ app_dir }}"
+        - "{{ fastapi_dir }}"
+
+    - name: Create required directories
+      file:
+        path: "/home/ubuntu/{{ item }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+      become_user: "{{ ansible_user }}"
+      loop:
+        - repos
+
+    - name: Accept GitHub host key
+      shell: ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+      become_user: "{{ ansible_user }}"
+      
+    - name: Clone ANPR application repository
+      git:
+        repo: "git@github.com:{{github_user}}/fastapi-anpr.git"
+        dest: "{{ app_dir }}"
+        version: azure
+        accept_hostkey: yes
+      become_user: "{{ ansible_user }}"
+
+    - name: Clone private FastAPI repository
+      git:
+        repo: "{{ fastapi_repo_url }}"
+        dest: "{{ fastapi_dir }}"
+        version: "{{ fastapi_repo_branch }}"
+        accept_hostkey: yes
+      become_user: "{{ ansible_user }}"
+      register: fastapi_clone
+
+    - name: Check if FastAPI repository was cloned successfully
+      debug:
+        msg: "FastAPI repository cloned to {{ fastapi_dir }}"
+      when: fastapi_clone.changed
+
+    - name: Check FastAPI repository contents
+      shell: ls -la {{ fastapi_dir }}
+      register: fastapi_contents
+      when: fastapi_clone.changed
+
+    - name: Display FastAPI repository contents
+      debug:
+        msg: "{{ fastapi_contents.stdout_lines }}"
+      when: fastapi_clone.changed
+
+
+    - name: Display deployment summary
+      debug:
+        msg: |
+          ========================================
+          FastAPI Applications Deployed Successfully!
+          ========================================
+          
+          ANPR Application:
+          - Directory: {{ app_dir }}
+          - Repository: git@github.com:{{github_user}}/fastapi-anpr.git
+          - Branch: azure
+          
+          FastAPI Private Application:
+          - Directory: {{ fastapi_dir }}
+          - Repository: {{ fastapi_repo_url }}
+          - Branch: {{ fastapi_repo_branch }}
+          
+          ========================================
+
+    - name: Clean up FastAPI deployments
+      block:
+        - name: Stop and remove FastAPI containers
+          shell: |
+            cd {{ fastapi_dir }}
+            if [ -f "docker-compose.yml" ]; then
+              echo "Stopping FastAPI containers..."
+              docker-compose down
+              echo "Removing containers..."
+              docker-compose down --remove-orphans
+            fi
+          become_user: "{{ ansible_user }}"
+          when: fastapi_clone.changed or cleanup is defined
+
+        - name: Remove FastAPI Docker images
+          shell: |
+            # Remove FastAPI app image if exists
+            if docker images | grep -q "fastapi-app"; then
+              echo "Removing FastAPI Docker images..."
+              docker rmi $(docker images "fastapi-app" -q) 2>/dev/null || true
+            fi
+            
+            # Remove build cache
+            docker builder prune -f
+          become_user: "{{ ansible_user }}"
+          when: fastapi_clone.changed or cleanup is defined
+
+        - name: Clean up deployment directories
+          file:
+            path: "{{ item }}"
+            state: absent
+          loop:
+            - "{{ app_dir }}"
+            - "{{ fastapi_dir }}"
+          when: cleanup is defined
+
+        - name: Display cleanup summary
+          debug:
+            msg: |
+              ========================================
+              FastAPI Applications Cleanup Completed!
+              ========================================
+              
+              Cleaned up:
+              - FastAPI ANPR directory: {{ app_dir }}
+              - FastAPI Private App directory: {{ fastapi_dir }}
+              - Docker containers and images
+              - Build cache
+              
+              ========================================
+          when: cleanup is defined
+      when: cleanup is defined

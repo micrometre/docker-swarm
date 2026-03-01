@@ -33,13 +33,22 @@ help:
 	@echo "  deploy-redis           - Deploy Redis services"
 	@echo "  deploy-stack           - Deploy full application stack"
 	@echo "  deploy-repo            - Deploy stack from Git repository"
+	@echo "  deploy-fastapi          - Deploy FastAPI ANPR and private applications"
 	@echo "  create-networks        - Create Swarm networks"
+	@echo ""
+	@echo "Deployment Removal:"
+	@echo "  remove-fastapi         - Remove FastAPI deployments"
+	@echo "  remove-stack           - Remove Docker stack"
+	@echo "  remove-service         - Remove specific service (NAME=service_name)"
+	@echo "  remove-all-services    - Remove all services"
+	@echo "  remove-specific-stack  - Remove specific stack (STACK=stack_name)"
+	@echo "  cleanup-docker         - Clean up Docker resources"
+	@echo "  cleanup-deployments    - Remove deployment directories"
 	@echo ""
 	@echo "Service Management:"
 	@echo "  list-services          - List all Swarm services"
 	@echo "  inspect-service        - Inspect service details (NAME=service_name)"
 	@echo "  scale-service          - Scale service (NAME=service_name REPLICAS=n)"
-	@echo "  remove-service         - Remove service (NAME=service_name)"
 	@echo "  service-logs           - Show service logs (NAME=service_name)"
 	@echo ""
 	@echo "Inventory:"
@@ -70,11 +79,16 @@ help:
 	@echo "  make list-services"
 	@echo "  make scale-service NAME=nginx_test REPLICAS=3"
 	@echo "  make deploy-repo REPO=https://github.com/user/repo.git"
+	@echo "  make deploy-fastapi"
+	@echo "  make remove-fastapi"
+	@echo "  make remove-service NAME=nginx_test"
+	@echo "  make remove-all-services"
+	@echo "  make cleanup-docker"
 	@echo "  make power-on-vm VM=docker_swarm1"
 	@echo "  make shutdown-vms"
 	@echo "  make restart-vm VM=docker_swarm2"
 
-.PHONY: help check-syntax create-vm create-multiple-vms create-docker-swarm custom_vm create-vm-force create-multiple-vms-force configure-vm configure-vm-specific ping-vms ping-vm list-vms show-inventory vm-status vm-cleanup vm-overview clean_full vars setup-vm-full init-swarm join-swarm setup-swarm swarm-status leave-swarm deploy-services deploy-nginx deploy-redis deploy-stack deploy-repo create-networks list-services inspect-service scale-service remove-service service-logs power-on-vms power-on-vm shutdown-vms shutdown-vm restart-vms restart-vm force-shutdown-vms force-shutdown-vm
+.PHONY: help check-syntax create-vm create-multiple-vms create-docker-swarm custom_vm create-vm-force create-multiple-vms-force configure-vm configure-vm-specific ping-vms ping-vm list-vms show-inventory vm-status vm-cleanup vm-overview clean_full vars setup-vm-full init-swarm join-swarm setup-swarm swarm-status leave-swarm deploy-services deploy-nginx deploy-redis deploy-stack deploy-repo deploy-fastapi remove-fastapi remove-stack remove-service remove-all-services remove-specific-stack cleanup-docker cleanup-deployments create-networks list-services inspect-service scale-service service-logs power-on-vms power-on-vm shutdown-vms shutdown-vm restart-vms restart-vm force-shutdown-vms force-shutdown-vm
 
 # Create single VM (legacy mode)
 create-vm:
@@ -137,6 +151,38 @@ deploy-stack:
 deploy-repo:
 	ansible-playbook -i inventory/created_vms.yml playbooks/deployments/deploy_from_repo.yml -e "repo=$(REPO)" -e "branch=$(BRANCH)" -e "stack=$(STACK)" -e "compose=$(COMPOSE)" -e "cleanup=$(CLEANUP)"
 
+# Deploy FastAPI ANPR and private FastAPI applications
+deploy-fastapi:
+	ansible-playbook -i inventory/created_vms.yml playbooks/deployments/deploy_fastapi_anpr.yml
+
+# Remove FastAPI deployments
+remove-fastapi:
+	ansible-playbook -i inventory/created_vms.yml playbooks/deployments/deploy_fastapi_anpr.yml -e "cleanup=true"
+
+# Remove Docker stack
+remove-stack:
+	ansible-playbook -i inventory/created_vms.yml playbooks/deployments/deploy_stack.yml -e "action=remove"
+
+# Remove specific service
+remove-service:
+	ansible-playbook -i inventory/created_vms.yml playbooks/management/manage_services.yml -e "action=remove" -e "name=$(NAME)"
+
+# Remove all services
+remove-all-services:
+	ansible-playbook -i inventory/created_vms.yml playbooks/management/manage_services.yml -e "action=remove_all"
+
+# Remove specific stack
+remove-specific-stack:
+	ansible-playbook -i inventory/created_vms.yml playbooks/management/manage_services.yml -e "action=remove_stack" -e "stack=$(STACK)"
+
+# Clean up Docker resources
+cleanup-docker:
+	ansible-playbook -i inventory/created_vms.yml playbooks/management/manage_services.yml -e "action=cleanup_docker"
+
+# Remove deployment directories
+cleanup-deployments:
+	ansible-playbook -i inventory/created_vms.yml playbooks/management/manage_services.yml -e "action=cleanup_deployments"
+
 # Service management
 list-services:
 	ansible-playbook -i inventory/created_vms.yml playbooks/management/manage_services.yml -e "action=list"
@@ -146,9 +192,6 @@ inspect-service:
 
 scale-service:
 	ansible-playbook -i inventory/created_vms.yml playbooks/management/manage_services.yml -e "action=scale" -e "name=$(NAME)" -e "replicas=$(REPLICAS)"
-
-remove-service:
-	ansible-playbook -i inventory/created_vms.yml playbooks/management/manage_services.yml -e "action=remove" -e "name=$(NAME)"
 
 service-logs:
 	ansible-playbook -i inventory/created_vms.yml playbooks/management/manage_services.yml -e "action=logs" -e "name=$(NAME)"
