@@ -1,0 +1,40 @@
+---
+- name: Deploy Full Application Stack
+  hosts: docker_swarm1
+  become: true
+  vars:
+    swarm_node_role: "manager"
+    swarm_networks:
+      - name: "web_network"
+        driver: "overlay"
+        subnet: "10.10.0.0/24"
+        gateway: "10.10.0.1"
+      - name: "data_network"
+        driver: "overlay"
+        subnet: "10.20.0.0/24"
+        gateway: "10.20.0.1"
+    swarm_services:
+      - name: "nginx_frontend"
+        image: "nginx:alpine"
+        replicas: 2
+        publish: "80:80"
+        network: "web_network"
+        env: "NGINX_HOST=docker_swarm1"
+        update: false
+      - name: "redis_cache"
+        image: "redis:alpine"
+        replicas: 1
+        network: "data_network"
+        env: "REDIS_REPLICATION_MODE=master"
+        update: false
+      - name: "web_app"
+        image: "httpd:alpine"
+        replicas: 2
+        network: "web_network"
+        env: "APACHE_SERVER_NAME=docker_swarm1"
+        update: false
+  roles:
+    - ../../roles/docker_swarm
+  tags:
+    - stack_deploy
+    - swarm_services

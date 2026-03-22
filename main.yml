@@ -1,0 +1,6 @@
+- name: playbook to create and manage VMs
+  hosts: localhost
+  roles:
+    - vm-manager
+  tags: create_vm
+

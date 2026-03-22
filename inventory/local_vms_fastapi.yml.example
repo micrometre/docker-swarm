@@ -1,0 +1,60 @@
+# Example Local VMs inventory file for FastAPI deployment
+# This shows how to configure local VMs for FastAPI application deployment
+# Copy this to a custom inventory file or use the existing created_vms.yml
+
+---
+all:
+  children:
+    # This group matches the existing created_vms inventory
+    created_vms:
+      hosts:
+        # Example local VM 1 (manager)
+        docker_swarm1:
+          ansible_host: 192.168.122.101  # Update with actual VM IP
+          ansible_user: ubuntu
+          ansible_ssh_private_key_file: "~/.ssh/id_rsa"
+          ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+          vm_role: "manager"
+          vm_purpose: "fastapi-deployment"
+          
+        # Example local VM 2 (worker)
+        docker_swarm2:
+          ansible_host: 192.168.122.102  # Update with actual VM IP
+          ansible_user: ubuntu
+          ansible_ssh_private_key_file: "~/.ssh/id_rsa"
+          ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+          vm_role: "worker"
+          vm_purpose: "fastapi-deployment"
+
+# Group variables for all local VMs
+  vars:
+    # FastAPI deployment configuration
+    fastapi_environment: "development"
+    fastapi_domain: "local"
+    
+    # Network configuration
+    network_range: "192.168.122.0/24"
+    
+    # Docker configuration
+    docker_version: "latest"
+    docker_compose_version: "2.24.0"
+    
+    # Application ports
+    fastapi_port: 8000
+    fastapi_exposed_port: 8000
+    
+    # Security configuration
+    enable_firewall: true
+    allowed_ports:
+      - "22"   # SSH
+      - "8000" # FastAPI application
+      - "80"   # HTTP
+      - "443"  # HTTPS
+    
+    # Monitoring
+    enable_monitoring: true
+    log_level: "INFO"
+    
+    # Development settings
+    debug_mode: true
+    auto_reload: true

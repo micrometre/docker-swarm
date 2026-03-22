@@ -1,0 +1,113 @@
+---
+- name: Deploy Stack from Git Repository
+  hosts: docker_swarm1
+  become: true
+  vars:
+    swarm_node_role: "manager"
+    repo_url: "{{ repo | default('https://github.com/docker/example-voting-app.git') }}"
+    repo_branch: "{{ branch | default('main') }}"
+    stack_name: "{{ stack | default('voting-app') }}"
+    deploy_dir: "/tmp/{{ stack_name }}"
+    compose_file: "{{ compose | default('docker-stack.yml') }}"
+    cleanup_after_deploy: "{{ cleanup | default('false') }}"
+  tasks:
+    - name: Ensure git is installed
+      package:
+        name: git
+        state: present
+
+    - name: Create deployment directory
+      file:
+        path: "{{ deploy_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Clone repository
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ deploy_dir }}"
+        version: "{{ repo_branch }}"
+        force: yes
+      register: repo_clone
+      when: repo_url.startswith('http://') or repo_url.startswith('https://') or repo_url.startswith('git@')
+
+    - name: Copy local repository (for local file paths)
+      synchronize:
+        src: "{{ repo_url.replace('file://', '') }}/"
+        dest: "{{ deploy_dir }}/"
+        delete: yes
+        recursive: yes
+      when: repo_url.startswith('file://')
+
+    - name: Check if stack file exists
+      stat:
+        path: "{{ deploy_dir }}/{{ compose_file }}"
+      register: stack_file
+
+    - name: Fail if stack file not found
+      fail:
+        msg: "Stack file '{{ compose_file }}' not found in repository. Available files:"
+      when: not stack_file.stat.exists
+
+    - name: List files in repository (for debugging)
+      command: ls -la {{ deploy_dir }}
+      register: repo_files
+      when: not stack_file.stat.exists
+
+    - name: Show available files (for debugging)
+      debug:
+        msg: "{{ repo_files.stdout_lines }}"
+      when: not stack_file.stat.exists
+
+    - name: Display stack file content
+      debug:
+        msg: "Found stack file: {{ compose_file }}"
+      when: stack_file.stat.exists
+
+    - name: Deploy Docker Stack
+      shell: |
+        cd {{ deploy_dir }}
+        docker stack deploy -c {{ compose_file }} {{ stack_name }}
+      register: stack_deploy
+      when: stack_file.stat.exists
+
+    - name: Display deployment result
+      debug:
+        msg: |
+          Stack deployment completed!
+          Stack: {{ stack_name }}
+          Repository: {{ repo_url }}
+          Branch: {{ repo_branch }}
+          Compose File: {{ compose_file }}
+          Result: {{ 'SUCCESS' if stack_deploy.rc == 0 else 'FAILED' }}
+      when: stack_file.stat.exists
+
+    - name: Wait for services to start
+      pause:
+        seconds: 10
+      when: stack_file.stat.exists and stack_deploy.rc == 0
+
+    - name: Show stack services
+      shell: docker stack services {{ stack_name }}
+      register: stack_services
+      when: stack_file.stat.exists and stack_deploy.rc == 0
+
+    - name: Display stack services
+      debug:
+        msg: "{{ stack_services.stdout_lines }}"
+      when: stack_file.stat.exists and stack_deploy.rc == 0
+
+    - name: Cleanup deployment directory
+      file:
+        path: "{{ deploy_dir }}"
+        state: absent
+      when: cleanup_after_deploy | bool and stack_file.stat.exists
+
+    - name: Display cleanup message
+      debug:
+        msg: "Deployment directory {{ deploy_dir }} cleaned up"
+      when: cleanup_after_deploy | bool and stack_file.stat.exists
+
+  tags:
+    - repo_deploy
+    - stack_deploy

@@ -1,0 +1,68 @@
+---
+# Playbook to setup Docker Swarm cluster
+
+- name: Initialize Docker Swarm Manager
+  hosts: docker_swarm1
+  become: true
+  vars:
+    swarm_node_role: "manager"
+    swarm_networks:
+      - name: "web_network"
+        driver: "overlay"
+        subnet: "10.10.0.0/24"
+        gateway: "10.10.0.1"
+      - name: "db_network"
+        driver: "overlay"
+        subnet: "10.20.0.0/24"
+        gateway: "10.20.0.1"
+    swarm_services:
+      - name: "nginx_service"
+        image: "nginx:alpine"
+        replicas: 2
+        publish: "80:80"
+        network: "web_network"
+        env: "NGINX_HOST=docker_swarm1"
+        update: false
+      - name: "redis_service"
+        image: "redis:alpine"
+        replicas: 1
+        network: "db_network"
+        update: false
+  roles:
+    - ../../roles/docker_swarm
+  tags:
+    - swarm_manager
+    - swarm_init
+
+- name: Join Workers to Docker Swarm
+  hosts: docker_swarm2
+  become: true
+  vars:
+    swarm_node_role: "worker"
+    swarm_advertise_addr: "192.168.122.101"
+  roles:
+    - ../../roles/docker_swarm
+  tags:
+    - swarm_worker
+    - swarm_join
+
+- name: Display Swarm Status
+  hosts: created_vms
+  become: true
+  vars:
+    swarm_node_role: "{{ 'manager' if inventory_hostname == 'docker_swarm1' else 'worker' }}"
+    swarm_services:
+      - name: "nginx_test"
+        image: "nginx:alpine"
+        replicas: 2
+        publish: "8080:80"
+        network: "ingress"
+        env: "NGINX_HOST=docker_swarm1"
+        update: false
+  tasks:
+    - name: Get Swarm status
+      include_role:
+        name: ../../roles/docker_swarm
+        tasks_from: status.yml
+  tags:
+    - swarm_status

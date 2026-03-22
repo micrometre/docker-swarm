@@ -1,0 +1,52 @@
+---
+# Tasks to initialize Docker Swarm
+
+- name: Initialize Docker Swarm
+  command: >
+    docker swarm init
+    --advertise-addr {{ swarm_advertise_addr }}
+    --listen-addr {{ swarm_listen_addr }}
+    --data-path-port {{ swarm_data_path_port }}
+    --default-addr-pool {{ swarm_default_addr_pool }}
+    --default-addr-pool-mask-length {{ swarm_default_addr_pool_subnet }}
+  register: swarm_init_result
+  when: swarm_status.stdout == "inactive"
+
+- name: Get Swarm manager token
+  command: docker swarm join-token -q manager
+  register: swarm_manager_token_result
+  when: swarm_init_result is succeeded
+
+- name: Get Swarm worker token
+  command: docker swarm join-token -q worker
+  register: swarm_worker_token_result
+  when: swarm_init_result is succeeded
+
+- name: Store Swarm tokens as facts
+  set_fact:
+    swarm_manager_token: "{{ swarm_manager_token_result.stdout }}"
+    swarm_worker_token: "{{ swarm_worker_token_result.stdout }}"
+  when: swarm_init_result is succeeded
+
+- name: Save tokens to file for sharing
+  copy:
+    content: |
+      swarm_manager_token: "{{ swarm_manager_token_result.stdout }}"
+      swarm_worker_token: "{{ swarm_worker_token_result.stdout }}"
+    dest: /tmp/swarm_tokens.yml
+    mode: '0644'
+  delegate_to: localhost
+  run_once: true
+  when: swarm_init_result is succeeded
+
+- name: Display join commands
+  debug:
+    msg: |
+      Docker Swarm initialized successfully!
+      
+      Manager join command:
+      docker swarm join --token {{ swarm_manager_token }} {{ swarm_advertise_addr }}:2377
+      
+      Worker join command:
+      docker swarm join --token {{ swarm_worker_token }} {{ swarm_advertise_addr }}:2377
+  when: swarm_init_result is succeeded

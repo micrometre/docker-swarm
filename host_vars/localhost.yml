@@ -1,0 +1,40 @@
+---
+ansible_connection: "local" 
+ansible_user: "ubuntu" 
+gather_facts: yes
+
+# VM Manager Configuration
+# Uncomment and customize these variables as needed
+
+# Basic VM settings
+# vm_name: hal9000
+# vm_hostname: hal9000
+# vm_ram: 2048
+# vm_vcpus: 2
+# vm_disk_size: 20G
+
+# IP Address Configuration
+# vm_ip_config:
+#   mode: static                    # 'dhcp' or 'static'
+#   static_ip: "192.168.122.100"    # Required if mode is 'static'
+#   gateway: "192.168.122.1"
+#   netmask: "255.255.255.0"
+#   dns_servers:
+#     - "8.8.8.8" 
+#     - "8.8.4.4"
+
+# SSH Key Configuration
+# ssh_public_key_file: "{{ ansible_env.HOME }}/.ssh/id_rsa.pub"
+# generate_ssh_key: true
+
+# Force recreate VM if it exists
+# force_recreate: true
+
+# Ubuntu version (focal, jammy, etc.)
+# ubuntu_version: focal
+
+# VM User Configuration
+# vm_user: ubuntu
+# vm_user_groups:
+#   - sudo
+#   - docker

@@ -1,0 +1,36 @@
+---
+# Default variables for Docker Swarm role
+
+# Docker Swarm configuration
+swarm_advertise_addr: "{{ ansible_default_ipv4.address }}"
+swarm_listen_addr: "0.0.0.0"
+swarm_data_path_port: 4789
+swarm_default_addr_pool: "10.0.0.0/8"
+swarm_default_addr_pool_subnet: "24"
+
+# Node configuration
+swarm_node_role: "worker"  # Can be "manager" or "worker"
+swarm_node_labels: {}
+swarm_node_availability: "active"  # Can be "active", "pause", "drain"
+
+# Manager configuration
+swarm_manager_nodes: []
+swarm_manager_count: 1
+swarm_raft_heartbeat: 5
+swarm_raft_election_timeout: 10
+
+# Worker configuration
+swarm_worker_token: ""
+swarm_manager_token: ""
+
+# Network configuration
+swarm_network_driver: "overlay"
+swarm_network_subnet: "10.10.0.0/24"
+swarm_network_gateway: "10.10.0.1"
+
+# Service configuration
+swarm_services: []
+
+# Cleanup
+swarm_force_leave: false
+swarm_force_new_cluster: false

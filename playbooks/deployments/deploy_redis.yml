@@ -1,0 +1,29 @@
+---
+- name: Deploy Redis Service
+  hosts: docker_swarm1
+  become: true
+  vars:
+    swarm_node_role: "manager"
+    swarm_networks:
+      - name: "data_network"
+        driver: "overlay"
+        subnet: "10.20.0.0/24"
+        gateway: "10.20.0.1"
+    swarm_services:
+      - name: "redis_master"
+        image: "redis:alpine"
+        replicas: 1
+        network: "data_network"
+        env: "REDIS_REPLICATION_MODE=master"
+        update: false
+      - name: "redis_slave"
+        image: "redis:alpine"
+        replicas: 1
+        network: "data_network"
+        env: "REDIS_REPLICATION_MODE=slave REDIS_MASTER_HOST=redis_master"
+        update: false
+  roles:
+    - ../../roles/docker_swarm
+  tags:
+    - redis_deploy
+    - swarm_services

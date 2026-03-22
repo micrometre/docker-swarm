@@ -1,0 +1,31 @@
+---
+# YAML linting configuration for this project
+extends: default
+
+rules:
+  # 2 spaces indentation
+  indentation:
+    spaces: 2
+    indent-sequences: true
+    check-multi-line-strings: false
+  
+  # Line length
+  line-length:
+    max: 120
+  
+  # Document start
+  document-start:
+    present: true
+  
+  # Trailing spaces
+  trailing-spaces: enable
+  
+  # Empty lines
+  empty-lines:
+    max: 2
+    max-start: 0
+    max-end: 1
+  
+  # Comments
+  comments:
+    min-spaces-from-content: 1

@@ -1,0 +1,54 @@
+---
+# Tasks to deploy Docker Swarm services
+
+- name: Check if service exists
+  command: docker service ls --filter name={{ item.name }} -q
+  register: service_check
+  loop: "{{ swarm_services }}"
+  changed_when: false
+  failed_when: false
+
+- name: Create or update services
+  command: >
+    docker service create
+    --name {{ item.name }}
+    --replicas {{ item.replicas | default(1) }}
+    {% if item.publish is defined and item.publish != '' %}--publish {{ item.publish }}{% endif %}
+    {% if item.network is defined and item.network != '' %}--network {{ item.network }}{% endif %}
+    {% if item.constraint is defined and item.constraint != '' %}--constraint {{ item.constraint }}{% endif %}
+    {% if item.label is defined and item.label != '' %}--label {{ item.label }}{% endif %}
+    {% if item.env is defined and item.env != '' %}--env {{ item.env }}{% endif %}
+    {% if item.mount is defined and item.mount != '' %}--mount {{ item.mount }}{% endif %}
+    {{ item.extra_args | default('') }}
+    {{ item.image }}
+  loop: "{{ swarm_services }}"
+  when: service_check.results[ansible_loop.index0].stdout == ""
+  loop_control:
+    extended: yes
+
+- name: Update existing services
+  command: >
+    docker service update
+    --image {{ item.image }}
+    --replicas {{ item.replicas | default(1) }}
+    --publish-add {{ item.publish | default('') }}
+    --constraint-add {{ item.constraint | default('') }}
+    --label-add {{ item.label | default('') }}
+    --env-add {{ item.env | default('') }}
+    --mount-add {{ item.mount | default('') }}
+    {{ item.extra_args | default('') }}
+    {{ item.name }}
+  loop: "{{ swarm_services }}"
+  when: 
+    - service_check.results[ansible_loop.index0].stdout != ""
+    - item.update | default(false) | bool
+  loop_control:
+    extended: yes
+
+- name: Display deployed services
+  debug:
+    msg: "Deployed service: {{ item.name }} ({{ item.image }})"
+  loop: "{{ swarm_services }}"
+  when: service_check.results[ansible_loop.index0].stdout == ""
+  loop_control:
+    extended: yes

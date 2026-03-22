@@ -1,0 +1,33 @@
+---
+# Main tasks for vm-manager role
+
+# Handle different VM actions
+- name: Include cleanup tasks
+  include_tasks: cleanup.yml
+  when: vm_cleanup | default(false) | bool
+
+- name: Include status tasks
+  include_tasks: status.yml
+  when: vm_action | default('create') == 'status'
+
+- name: Skip VM creation tasks if only checking status or cleaning up
+  meta: end_play
+  when: (vm_action | default('create') == 'status') or (vm_cleanup | default(false) | bool)
+
+- name: Create multiple VMs when vms dictionary is defined
+  include_tasks: create_multiple_vms.yml
+  when: vms is defined and vms | length > 1
+
+- name: Create single VM (legacy mode or when only one VM defined)
+  include_tasks: create_single_vm.yml
+  vars:
+    vm_item:
+      key: "{{ vm_name }}"
+      value:
+        vm_name: "{{ vm_name }}"
+        vm_hostname: "{{ vm_hostname }}"
+        vm_ram: "{{ vm_ram }}"
+        vm_vcpus: "{{ vm_vcpus }}"
+        vm_disk_size: "{{ vm_disk_size }}"
+        vm_static_ip: "{{ vm_static_ip }}"
+  when: vms is not defined or vms | length == 1

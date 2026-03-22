@@ -1,0 +1,21 @@
+---
+- name: Configure Created VMs
+  hosts: created_vms
+  become: true
+  vars:
+    # Add any configuration variables here
+  roles:
+    - ../../roles/common
+    - ../../roles/docker
+  tasks:
+    - name: Display VM configuration status
+      debug:
+        msg: |
+          ========================================
+          VM Configuration Complete!
+          ========================================
+          Hostname: {{ ansible_facts.hostname }}
+          IP Address: {{ ansible_host }}
+          OS: {{ ansible_facts.distribution }} {{ ansible_facts.distribution_version }}
+          Python: {{ ansible_facts.python_version }}
+          ========================================
